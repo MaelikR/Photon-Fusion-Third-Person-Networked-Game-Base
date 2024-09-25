@@ -169,8 +169,7 @@ Defining Skills:
 You can define the skills available to the player by populating the availableSkills list. Each skill must be defined with a name, damage, mana cost, and cooldown.
 Example of adding a skill:
 
-csharp
-Copier le code
+
 Skill fireball = new Skill { skillName = "Fireball", damage = 30, manaCost = 10, cooldown = 5f };
 combatSystem.availableSkills.Add(fireball);
 Triggering Skills:
@@ -194,81 +193,439 @@ The cooldown management and mana cost checks ensure that players cannot spam ski
 7. CraftingSystem.cs
 Purpose: Provides crafting functionality for players to create items.
 Details: Allows players to combine resources into new items based on predefined recipes. Manages inventory, crafting success/failure rates, and resource consumption.
+CraftingSystem.cs
+The CraftingSystem.cs script manages crafting mechanics in the game. It allows players to craft items using predefined recipes and ensures that players have the required materials in their inventory before crafting an item.
+
+Key Functionalities:
+AddRecipe(CraftingRecipe recipe): Adds a new crafting recipe to the available recipes list.
+CraftItem(string recipeName, InventorySystem inventory): Crafts an item by checking if the player has the necessary materials and deducts them from the inventory.
+RPC_NotifyCraftingSuccess(string itemName): Displays a message when an item is successfully crafted.
+Usage: Attach this script to a game object to manage crafting mechanics in a networked environment. The script ensures that crafting actions are synchronized across the network.
+
+
+
 8. DialogueSystem.cs
 Purpose: Manages NPC and player dialogues.
 Details: Provides a structured way for players to interact with NPCs. Handles branching dialogue options, quest acceptance, and storytelling elements.
+DialogueSystem.cs
+The DialogueSystem.cs script handles interactive dialogues between the player and NPCs or other characters. It allows for dialogue lines and choices to be displayed in a structured manner.
+
+Key Functionalities:
+
+StartDialogue(Dialogue dialogue): Initiates a dialogue with a character, displaying lines one by one.
+DisplayNextLine(Dialogue dialogue): Displays the next line in the dialogue sequence.
+DisplayPlayerChoices(Dialogue dialogue): Presents dialogue choices to the player.
+EndDialogue(): Ends the dialogue interaction.
+Usage: Attach this script to manage conversations in your game. It provides a queue-based system to display dialogue lines and choices, allowing for interactive storytelling.
+
+
+
 9. EventSystem.cs
 Purpose: Coordinates in-game events and triggers.
 Details: Manages timed events, player-triggered events, and world events that impact gameplay. This can include things like holiday events, world bosses, or special in-game celebrations.
+EventSystem.cs
+The EventSystem.cs script controls events that occur within the game world. It manages the initiation, handling, and termination of events, ensuring that they are synchronized across the network.
+
+Key Functionalities:
+
+StartEvent(string newEvent): Begins a new event and handles its logic.
+EndEvent(): Ends the ongoing event.
+HandleEvent(): A coroutine that manages the event’s duration and actions.
+Usage: This script is essential for controlling game events, making sure they are executed properly and visible to all players in a multiplayer environment.
+
+
 10. GameManager.cs
 Purpose: Central controller of the game’s main flow and state management.
 Details: Initializes game systems, manages transitions between game states (e.g., main menu, in-game, pause), and handles high-level game logic.
+GameManager.cs
+The GameManager.cs script serves as the central manager for handling network initialization and player management using Photon Fusion. It manages player spawning, game startup, and network-related callbacks.
+
+Key Functionalities:
+
+Start(): Initializes and starts the network game session.
+OnPlayerJoined(NetworkRunner runner, PlayerRef player): Spawns a player when they join the game.
+OnPlayerLeft(NetworkRunner runner, PlayerRef player): Despawns a player when they leave the game.
+Usage: Attach this script to a GameObject to handle network initialization and player management. It allows automatic player spawning and integrates with Fusion’s callback system for smooth multiplayer experiences.
+
+
+
 11. GuildSystem.cs
 Purpose: Manages player guilds and their related functionality.
 Details: Allows players to create, join, and manage guilds. Handles guild ranks, permissions, chat, and member management.
+GuildSystem.cs
+The GuildSystem.cs script manages the creation and management of player guilds in the game.
+
+Key Functionalities:
+
+CreateGuild(string guildName, string founderName): Creates a new guild with the specified name and founder.
+AddMemberToGuild(Guild guild, string playerName): Adds a player to an existing guild.
+RPC_NotifyGuildUpdate(string message): Notifies all players about guild-related updates.
+Usage: This script facilitates guild formation and management, allowing players to join, leave, or create guilds within a networked environment.
+
+
+
 12. HousingSystem.cs
 Purpose: Provides player housing features.
 Details: Allows players to own, customize, and decorate personal or guild housing. Manages furniture placement, storage, and housing permissions.
+HousingSystem.cs
+The HousingSystem.cs script handles the purchase, placement, and customization of player housing.
+
+Key Functionalities:
+
+BuyHouse(Vector3 position): Allows the player to buy and place a house at a specified position.
+CustomizeHouse(string customization): Allows customization of the house.
+RPC_NotifyHouseBought() and RPC_NotifyHouseCustomized(string customization): Notify all players about house-related actions.
+Usage: Use this script to enable a housing system for players, where they can own, place, and customize their own homes in a multiplayer environment.
+
+
+
 13. InstanceManager.cs
 Purpose: Manages dungeon or instance creation and player assignment.
 Details: Handles the creation of private or group instances for players, ensuring proper spawning, instance limits, and boss encounters.
+InstanceManager.cs
+The InstanceManager.cs script manages game instances, which are separate, isolated environments that players can join.
+
+Key Functionalities:
+
+CreateInstance(string instanceName): Creates a new instance with the specified name.
+JoinInstance(string instanceName, string playerName): Allows a player to join an existing instance.
+RPC_NotifyInstanceUpdate(string message): Notifies all players about instance-related updates.
+Usage: Use this script to manage instances in your game, allowing for the creation and joining of unique, separate game environments.
+
+
+
 14. InventorySystem.cs
 Purpose: Manages player inventory, items, and equipment.
 Details: Handles item pickup, storage, usage, and equipment management. Provides functionality for equipping/unequipping gear and organizing inventory slots.
+InventorySystem.cs
+The InventorySystem.cs script handles the player's inventory, allowing items to be added, removed, or tracked.
+
+Key Functionalities:
+
+AddItem(Item newItem): Adds a new item to the inventory.
+RemoveItem(Item itemToRemove): Removes a specified item from the inventory.
+RPC_NotifyItemAdded(string itemName): Notifies all players when an item is added to the inventory.
+Usage: This script manages player inventory, enabling item collection, tracking, and removal in a networked setting.
+
+
+
 15. LootSystem.cs
 Purpose: Governs loot drops and distribution.
 Details: Manages item drops from enemies, bosses, and world objects. Handles loot roll mechanics, loot tables, and distribution rules for parties or raids.
+LootSystem.cs
+The LootSystem.cs script handles loot drops in the game, determining what items players can collect from defeated enemies or found in the world.
+
+Key Functionalities:
+
+DropLoot(): Randomly determines whether loot drops based on a predefined chance.
+RPC_NotifyLootDrop(string itemName): Notifies all players when loot is dropped.
+Usage: Use this script to manage loot drops from enemies or other sources, making the process interactive and visible to all players.
+
+
+
 16. MarketSystem.cs
 Purpose: Manages in-game marketplace transactions.
 Details: Allows players to buy and sell items on a marketplace. Supports listing items, bidding, and completing transactions.
+LootSystem.cs
+The LootSystem.cs script handles loot drops in the game, determining what items players can collect from defeated enemies or found in the world.
+
+Key Functionalities:
+
+DropLoot(): Randomly determines whether loot drops based on a predefined chance.
+RPC_NotifyLootDrop(string itemName): Notifies all players when loot is dropped.
+Usage: Use this script to manage loot drops from enemies or other sources, making the process interactive and visible to all players.
+
+
+
 17. MatchmakingSystem.cs
 Purpose: Facilitates player matchmaking for PvP and PvE activities.
 Details: Matches players based on criteria such as skill level, experience, or gear for different game modes, such as arenas, dungeons, or battlegrounds.
+MatchmakingSystem.cs
+The MatchmakingSystem.cs script handles the logic for queuing players for raid events and managing raid initiation.
+
+Key Functionalities:
+
+QueueForRaid(GameObject player): Adds a player to the raid queue. When the number of players reaches the required threshold (playersNeededForRaid), the StartRaid method is called.
+StartRaid(): Starts a raid with all queued players and logs their participation.
+RPC_NotifyRaidMatch(): Sends a notification to all players when matchmaking is successful and the raid is starting.
+Usage: Use this script to manage player queuing and initiate raid battles when enough players are ready.
+
+
+
 18. MountSystem.cs
 Purpose: Manages mount acquisition and usage.
 Details: Allows players to collect, summon, and use mounts. Handles mount speed, abilities, and customization.
+MountSystem.cs
+The MountSystem.cs script manages the summoning and dismissing of player mounts in the game.
+
+Key Functionalities:
+
+SummonMount(Vector3 position): Spawns a mount at the specified position if the player doesn't already have one summoned. If the player already has a mount, it will dismiss the current mount instead.
+Dismount(): Dismisses the current mount if one is active.
+RPC_NotifyMountSummon() and RPC_NotifyMountDismount(): Notify all players when a mount is summoned or dismissed.
+Usage: Integrate this script for a mount system where players can summon and dismiss mounts in a multiplayer environment.
+
+
+
 19. NetworkManager.cs
 Purpose: Oversees the networking aspects of the game.
 Details: Handles player connections, data synchronization, and network events to ensure seamless multiplayer experiences.
+NetworkManager.cs
+The NetworkManager.cs script is responsible for managing network sessions, including starting games, joining sessions, creating rooms, and leaving rooms.
+
+Key Functionalities:
+
+StartGame(GameMode mode): Initializes the NetworkRunner and starts the game in the specified mode (e.g., Host, Client).
+JoinSession(): Allows a player to join an existing game session.
+CreateRoom(string roomName): Creates a new game room for players to join.
+LeaveRoom(): Ends the current network session and shuts down the NetworkRunner.
+Usage: This script manages networking and game session handling, allowing players to start, join, and leave multiplayer games.
+
+
+
 20. PartySystem.cs
 Purpose: Manages party creation and management.
 Details: Allows players to create or join parties, manage members, share loot, and enable party-based mechanics such as shared experience gain.
+PartySystem.cs
+The PartySystem.cs script handles party management, allowing players to form and manage parties with other players.
+
+Key Functionalities:
+
+AddPlayerToParty(string playerName): Adds a player to the party if there’s space available.
+RemovePlayerFromParty(string playerName): Removes a player from the party.
+RPC_NotifyPartyUpdate(string message): Notifies all players about changes in the party (e.g., when someone joins or leaves).
+Usage: This script provides a way for players to form parties, enabling group play in a networked setting.
+
+
+
 21. PersistenceSystem.cs
 Purpose: Handles data persistence for players and the game world.
 Details: Manages saving and loading player data, including inventory, progress, and achievements. Ensures data consistency across sessions.
+PersistenceSystem.cs
+The PersistenceSystem.cs script handles saving and loading player data, ensuring game progress is maintained between sessions.
+
+Key Functionalities:
+
+SaveData(): Saves the player's character stats to a JSON file in the persistent data path.
+LoadData(): Loads the character stats from a saved JSON file.
+Usage: Integrate this script for a save/load system, allowing players to retain their progress across gaming sessions.
+
+
+
 22. PvPSystem.cs
 Purpose: Manages player-versus-player interactions and combat.
 Details: Handles PvP-specific rules, ranking, and combat mechanics, ensuring balanced and fair encounters between players.
+
+Here are detailed summaries of the provided scripts for inclusion in your README file:
+
+MatchmakingSystem.cs
+The MatchmakingSystem.cs script handles the logic for queuing players for raid events and managing raid initiation.
+
+Key Functionalities:
+
+QueueForRaid(GameObject player): Adds a player to the raid queue. When the number of players reaches the required threshold (playersNeededForRaid), the StartRaid method is called.
+StartRaid(): Starts a raid with all queued players and logs their participation.
+RPC_NotifyRaidMatch(): Sends a notification to all players when matchmaking is successful and the raid is starting.
+Usage: Use this script to manage player queuing and initiate raid battles when enough players are ready.
+
+MountSystem.cs
+The MountSystem.cs script manages the summoning and dismissing of player mounts in the game.
+
+Key Functionalities:
+
+SummonMount(Vector3 position): Spawns a mount at the specified position if the player doesn't already have one summoned. If the player already has a mount, it will dismiss the current mount instead.
+Dismount(): Dismisses the current mount if one is active.
+RPC_NotifyMountSummon() and RPC_NotifyMountDismount(): Notify all players when a mount is summoned or dismissed.
+Usage: Integrate this script for a mount system where players can summon and dismiss mounts in a multiplayer environment.
+
+NetworkManager.cs
+The NetworkManager.cs script is responsible for managing network sessions, including starting games, joining sessions, creating rooms, and leaving rooms.
+
+Key Functionalities:
+
+StartGame(GameMode mode): Initializes the NetworkRunner and starts the game in the specified mode (e.g., Host, Client).
+JoinSession(): Allows a player to join an existing game session.
+CreateRoom(string roomName): Creates a new game room for players to join.
+LeaveRoom(): Ends the current network session and shuts down the NetworkRunner.
+Usage: This script manages networking and game session handling, allowing players to start, join, and leave multiplayer games.
+
+PartySystem.cs
+The PartySystem.cs script handles party management, allowing players to form and manage parties with other players.
+
+Key Functionalities:
+
+AddPlayerToParty(string playerName): Adds a player to the party if there’s space available.
+RemovePlayerFromParty(string playerName): Removes a player from the party.
+RPC_NotifyPartyUpdate(string message): Notifies all players about changes in the party (e.g., when someone joins or leaves).
+Usage: This script provides a way for players to form parties, enabling group play in a networked setting.
+
+PersistenceSystem.cs
+The PersistenceSystem.cs script handles saving and loading player data, ensuring game progress is maintained between sessions.
+
+Key Functionalities:
+
+SaveData(): Saves the player's character stats to a JSON file in the persistent data path.
+LoadData(): Loads the character stats from a saved JSON file.
+Usage: Integrate this script for a save/load system, allowing players to retain their progress across gaming sessions.
+
+PvPSystem.cs
+The PvPSystem.cs script manages Player vs. Player (PvP) interactions, allowing players to engage in combat within designated PvP zones.
+
+Key Functionalities:
+
+EnterPvPZone() and ExitPvPZone(): Marks the player as being in or out of a PvP zone and sends a notification.
+AttackPlayer(GameObject targetPlayer, int damage): Allows a player to attack another player within a PvP zone, dealing damage.
+Usage: Use this script to handle PvP mechanics, enabling players to engage in combat within specific areas.
+
+
+
 23. QuestManager.cs
 Purpose: Manages the game’s quest system.
 Details: Provides functionality for quest creation, tracking, completion, and rewards. Supports main story quests, side quests, and daily tasks.
+QuestManager.cs
+The QuestManager.cs script manages the quest system, tracking player quests and their progress.
+
+Key Functionalities:
+
+AddQuest(Quest newQuest): Adds a new quest to the player’s quest log.
+UpdateQuestProgress(Quest quest, int progress): Updates a quest’s progress, marking it as completed when the goal is reached.
+RPC_UpdateQuestLog(string questUpdate): Sends quest updates to all players.
+Usage: Integrate this script for a comprehensive quest system, tracking and updating player quests in real-time.
+
+
+
 24. ReputationSystem.cs
 Purpose: Manages player reputation with various factions.
 Details: Tracks player actions and how they affect reputation with different in-game factions, unlocking rewards, quests, or penalties.
+ReputationSystem.cs
+The ReputationSystem.cs script manages player reputation with various factions in the game.
+
+Key Functionalities:
+
+ModifyReputation(string factionName, int reputationChange): Modifies the player’s reputation with a specified faction.
+CheckReputation(string factionName): Checks the player’s current reputation with a faction.
+RPC_NotifyReputationChange(string factionName, int newReputation): Sends reputation change notifications to all players.
+Usage: Use this script to implement a faction reputation system, allowing players to gain or lose reputation based on their actions.
+
+
+
 25. ServerLogic.cs
 Purpose: Contains the logic executed on the server-side.
 Details: Manages all server-related logic, ensuring that game events are handled correctly and consistently across all connected clients.
+ServerLogic.cs
+The ServerLogic.cs script handles server-side validation of player actions.
+
+Key Functionalities:
+
+ValidatePlayerAction(string actionType, GameObject player): Validates different player actions such as "Attack" or "Move."
+Usage: This script ensures that all player actions are validated by the server, maintaining game integrity and preventing cheating.
+
+
+
 26. SkillSystem.cs
 Purpose: Manages player skills and abilities.
 Details: Handles skill acquisition, leveling, and application during gameplay. Includes support for passive and active skills.
+SkillSystem.cs
+The SkillSystem.cs script manages player skills, handling skill usage, cooldowns, and unlocking skills.
+
+Key Functionalities:
+
+RPC_UseSkill(string skillName): Executes a skill action, deducting mana and applying cooldown.
+UnlockSkill(string skillName): Unlocks a new skill for the player.
+Usage: Use this script to manage the player’s skill set, enabling skill usage and unlocking within the game.
+
+
+
 27. TalentSystem.cs
 Purpose: Provides a talent tree or progression system for players.
 Details: Allows players to unlock talents as they level up, offering customization and specialization for their characters.
+TalentSystem.cs
+The TalentSystem.cs script manages the player’s talents, allowing them to unlock and manage talent points.
+
+Key Functionalities:
+
+UnlockTalent(string talentName): Unlocks a talent if the player has enough points.
+AddTalentPoints(string talentName, int points): Adds talent points to a specified talent.
+Usage: Use this script to implement a talent system, enabling players to develop their character's abilities further.
+
+
+
 28. TradingSystem.cs
 Purpose: Manages item trading between players.
 Details: Allows players to trade items, gold, or other resources securely. Ensures fair trade practices and prevents exploitation.
+TradingSystem.cs
+The TradingSystem.cs script manages item trading between players.
+
+Key Functionalities:
+
+OfferItemForTrade(string playerName, Item item): Adds an item to the trade offer for a specified player.
+AcceptTrade(): Finalizes the trade between two players.
+RPC_UpdateTradeStatus(string playerName, string itemName) and RPC_ConfirmTrade(): Notify players about trade status.
+Usage: Integrate this script to allow item trading between players in a multiplayer environment.
+
+
+
 29. TutorialSystem.cs
 Purpose: Guides new players through the game mechanics.
 Details: Provides interactive tutorials to help players understand core game features and controls.
+TutorialSystem.cs
+The TutorialSystem.cs script guides the player through a tutorial, teaching basic game mechanics.
+
+Key Functionalities:
+
+DisplayNextStep(): Displays the next step in the tutorial.
+EndTutorial(): Ends the tutorial once all steps are completed.
+Usage: Use this script to guide new players through a tutorial on game controls and mechanics.
+
+
+
 30. UIManager.cs
 Purpose: Manages the user interface elements.
 Details: Handles displaying HUD elements, menus, dialogs, and other UI components. Ensures a smooth and responsive player experience.
+UIManager.cs
+The UIManager.cs script manages the game’s user interface, updating health bars, mana bars, and the quest log.
+
+Key Functionalities:
+
+UpdateHealthBar() and UpdateManaBar(): Update the player’s health and mana UI elements.
+RPC_UpdateQuestLog(string newQuest): Updates the quest log UI for all players.
+Usage: This script controls the player’s in-game UI, ensuring that health, mana, and quests are displayed correctly.
+
+
+
 31. VoiceChatSystem.cs
 Purpose: Manages in-game voice communication.
 Details: Enables voice chat functionality for players, allowing them to communicate with teammates or other players.
+(under dev)
+
+
 32. WeatherSystem.cs
 Purpose: Controls dynamic weather effects in the game world.
 Details: Manages weather changes such as rain, snow, fog, and other effects. These can influence gameplay, visibility, and world aesthetics.
+WeatherSystem.cs
+The WeatherSystem.cs script controls the day/night cycle and weather effects.
+
+Key Functionalities:
+
+ChangeWeather(string weatherType): Changes the weather to rain, snow, or clear.
+RPC_NotifyDayCycleChange(bool isDay): Notifies players about day/night changes.
+Usage: Use this script to implement dynamic weather and day/night cycles in your game world.
+
+
+
 33. WorldManager.cs
 Purpose: Manages world settings and interactions.
 Details: Oversees the game world’s state, including day/night cycles, environmental changes, and world events.
+WorldManager.cs
+The WorldManager.cs script manages different zones in the game world and handles scene transitions.
+
+Key Functionalities:
+
+LoadZone(string zoneName): Loads a new game zone.
+UnloadZone(string zoneName): Unloads an existing zone.
+TravelToZone(string newZone): Facilitates player travel between zones.
+Usage: Use this script to manage world zones, allowing for dynamic scene transitions and exploration.
+
+(Under development base game Framework)
+
+MRenDev GameStudio
