@@ -1,5 +1,7 @@
 Detailed Explanation of ThirdPersonController.cs
+
 The ThirdPersonController.cs script is a comprehensive player controller for a third-person character in a networked game, using Photon Fusion for networking, Unity's Input System, and Cinemachine for camera control. Below is a detailed explanation of the core functionalities of this script.
+
 ![image](https://github.com/user-attachments/assets/a67cdf77-9361-4979-b6e3-9473c067f886)
 
 Purpose
@@ -55,17 +57,29 @@ Applies gravity and jump physics, managing the player's vertical velocity, and u
 Move() Method:
 
 Handles player movement based on input, adjusting speed, rotation, and animations accordingly.
+
 Uses the CharacterController to move the player character in a smooth and responsive manner, taking the camera's direction into account.
+
 Integration with Other Components
+
 Input System: The script interfaces with StarterAssetsInputs to receive player input, allowing movement, jumping, and sprinting based on keyboard/controller inputs.
+
 Animator: Manages animation states to ensure the character responds appropriately to different actions such as moving, jumping, and falling.
+
 Cinemachine Camera: Integrates with CinemachineFreeLook to provide an intuitive camera experience that follows the player in a third-person view.
+
 Key Attributes and Variables
+
 MoveSpeed and SprintSpeed: Control how fast the character moves.
+
 JumpHeight: Defines how high the character can jump.
+
 Gravity: Controls the rate at which the character falls.
+
 GroundLayers: Defines which layers the player can interact with for grounded checks.
+
 RotationSmoothTime: Determines how quickly the character rotates to face the movement direction.
 Networking Integration
+
 This script makes extensive use of Fusion's NetworkBehaviour features to ensure all player actions and states are properly synchronized across the network.
 By using HasInputAuthority, the script differentiates between local and remote players, ensuring that each player can only control their own character.
