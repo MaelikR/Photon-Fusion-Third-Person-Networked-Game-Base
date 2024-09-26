@@ -5,12 +5,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 #endif
 using Cinemachine;
-using System.Collections.Generic;
+using StarterAssets;
 
-namespace StarterAssets
+namespace Fusion
 {
     [RequireComponent(typeof(CharacterController))]
-#if ENABLE_INPUT_SYSTEM 
+#if ENABLE_INPUT_SYSTEM
     [RequireComponent(typeof(PlayerInput))]
 #endif
     public class ThirdPersonController : NetworkBehaviour, IDamageable
@@ -49,12 +49,13 @@ namespace StarterAssets
         private float _terminalVelocity = 53.0f;
         private bool _hasAnimator;
 
-        // Animator ID variables (already declared previously)
+        // Animator ID variables
         private int _animIDSpeed;
         private int _animIDGrounded;
         private int _animIDJump;
         private int _animIDFreeFall;
         private int _animIDMotionSpeed;
+
         [Header("Player")]
         [Tooltip("Move speed of the character in m/s")]
         public float MoveSpeed = 2.0f;
@@ -77,7 +78,6 @@ namespace StarterAssets
 #if ENABLE_INPUT_SYSTEM
         private PlayerInput _playerInput;
 #endif
-
 
         private void Awake()
         {
@@ -108,19 +108,10 @@ namespace StarterAssets
         {
             AssignAnimationIDs();
 
-            // Appeler les méthodes appropriées en fonction de l'autorité
-            if (HasInputAuthority)
-            {
-                OnStartAuthority();
-            }
-            else
-            {
-                OnStopAuthority();
-            }
-
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
         }
+
         public void TakeDamage(float damage, GameObject attacker)
         {
             health -= damage;
@@ -132,11 +123,10 @@ namespace StarterAssets
             }
         }
 
-        // Méthode pour gérer la mort du joueur
         private void Die()
         {
             Debug.Log("Player died");
-            Runner.Despawn(Object); // Assurez-vous de désapparaître correctement si vous utilisez Fusion
+            Runner.Despawn(Object);
         }
 
         private void OnEnable()
@@ -158,7 +148,6 @@ namespace StarterAssets
 
         private void OnStartAuthority()
         {
-            // Activer les composants pour le joueur local
             if (_freeLookCamera != null)
             {
                 _freeLookCamera.Follow = transform;
@@ -186,7 +175,6 @@ namespace StarterAssets
 
         private void OnStopAuthority()
         {
-            // Désactiver les composants pour les joueurs distants
             if (_freeLookCamera != null)
             {
                 _freeLookCamera.enabled = false;
@@ -219,8 +207,9 @@ namespace StarterAssets
                 return;
             }
 
-            JumpAndGravity();
             GroundedCheck();
+
+            JumpAndGravity();
             Move();
         }
 
@@ -265,14 +254,13 @@ namespace StarterAssets
 
                 if (_input.jump && _jumpTimeoutDelta <= 0.0f)
                 {
-                    Debug.Log("Jump triggered!"); // Débogage pour vérifier que le saut est déclenché
                     _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
 
                     if (_hasAnimator)
                     {
                         _animator.SetBool(_animIDJump, true);
                     }
-                    _input.jump = false; // Reset jump input
+                    _input.jump = false;
                 }
 
                 if (_jumpTimeoutDelta >= 0.0f)
@@ -305,8 +293,6 @@ namespace StarterAssets
             }
         }
 
-
-        // Méthode Move (comme initialement)
         private void Move()
         {
             if (_input == null) return;
@@ -318,7 +304,6 @@ namespace StarterAssets
             float speedOffset = 0.1f;
             float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
 
-            // Ajuster la vitesse pour qu'elle soit constante
             if (currentHorizontalSpeed < targetSpeed - speedOffset || currentHorizontalSpeed > targetSpeed + speedOffset)
             {
                 _speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude, Runner.DeltaTime * SpeedChangeRate);
@@ -332,41 +317,33 @@ namespace StarterAssets
             _animationBlend = Mathf.Lerp(_animationBlend, targetSpeed, Runner.DeltaTime * SpeedChangeRate);
             if (_animationBlend < 0.01f) _animationBlend = 0f;
 
-            // Mouvement du joueur
             if (_input.move != Vector2.zero)
             {
-                // Calcul de la direction du mouvement par rapport à la caméra
                 Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
 
-                // Récupérer la rotation horizontale de la caméra
                 Vector3 cameraForward = _mainCamera.transform.forward;
-                cameraForward.y = 0f; // On s'assure que l'axe Y est 0 pour ne pas affecter la vitesse
+                cameraForward.y = 0f;
                 cameraForward.Normalize();
 
                 Vector3 cameraRight = _mainCamera.transform.right;
-                cameraRight.y = 0f; // Idem, on s'assure de rester sur le plan horizontal
+                cameraRight.y = 0f;
                 cameraRight.Normalize();
 
-                // Calcul de la direction de déplacement du joueur
                 Vector3 moveDirection = cameraForward * inputDirection.z + cameraRight * inputDirection.x;
-                moveDirection.Normalize(); // On normalise pour s'assurer d'une vitesse constante
+                moveDirection.Normalize();
 
-                // Ajustement de la rotation du joueur
                 _targetRotation = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
                 float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _targetRotation, ref _rotationVelocity, RotationSmoothTime);
 
                 transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
 
-                // Déplacement du joueur
                 _controller.Move(moveDirection * _speed * Runner.DeltaTime + new Vector3(0.0f, _verticalVelocity, 0.0f) * Runner.DeltaTime);
             }
             else
             {
-                // Mouvement uniquement vertical si aucune entrée de déplacement
                 _controller.Move(new Vector3(0.0f, _verticalVelocity, 0.0f) * Runner.DeltaTime);
             }
 
-            // Mise à jour des animations
             if (_hasAnimator)
             {
                 _animator.SetFloat(_animIDSpeed, _animationBlend);
