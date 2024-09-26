@@ -83,3 +83,6 @@ Networking Integration
 
 This script makes extensive use of Fusion's NetworkBehaviour features to ensure all player actions and states are properly synchronized across the network.
 By using HasInputAuthority, the script differentiates between local and remote players, ensuring that each player can only control their own character.
+
+Precision: here is how to quickly setup the player controller: 
+![image](https://github.com/user-attachments/assets/997dad81-667f-4aea-bfa4-25fa090fa2ac)
