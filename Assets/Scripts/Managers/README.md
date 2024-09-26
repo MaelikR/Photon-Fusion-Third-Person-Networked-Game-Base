@@ -3,6 +3,8 @@ This repository serves as a comprehensive foundation for an online multiplayer g
 
 ![image](https://github.com/user-attachments/assets/ad304d07-319a-4064-9d09-03b79e999f3c)
 
+![image](https://github.com/user-attachments/assets/c0e5d3b0-8f84-4777-af83-fe828d2a411c)
+
 Script Descriptions
 1. AbilityManager.cs
 Purpose: Manages player abilities, including their activation, cooldowns, and effects.
