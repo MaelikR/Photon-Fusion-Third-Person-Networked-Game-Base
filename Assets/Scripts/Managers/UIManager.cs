@@ -42,13 +42,16 @@ public class UIManager : NetworkBehaviour
 		manaBar.value = playerStats.currentMana;
 	}
 
-	[Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-	public void RPC_UpdateQuestLog(string newQuest)
-	{
-		questLog.text += "\n" + newQuest;
-	}
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    public void RPC_UpdateQuestLog(string newQuest)
+    {
+        if (Object.HasStateAuthority || Object.HasInputAuthority)
+        {
+            questLog.text += "\n" + newQuest;
+        }
+    }
 
-	public void UpdateInventoryUI()
+    public void UpdateInventoryUI()
 	{
 		foreach (Item item in inventorySystem.inventory)
 		{
