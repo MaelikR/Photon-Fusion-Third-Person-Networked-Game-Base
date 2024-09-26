@@ -11,9 +11,9 @@ public class SwordController : NetworkBehaviour
 
     void Update()
     {
-        if (!HasInputAuthority) return; // Assurez-vous que seul le propriÈtaire de l'objet puisse le contrÙler
+        if (!HasInputAuthority) return; // Assurez-vous que seul le propri√©taire de l'objet puisse le contr√¥ler
 
-        if (Input.GetKeyDown(KeyCode.E)) // Touche pour dÈgainer/rengainer
+        if (Input.GetKeyDown(KeyCode.E)) // Touche pour d√©gainer/rengainer
         {
             if (isSwordDrawn)
             {
@@ -56,15 +56,15 @@ public class SwordController : NetworkBehaviour
 
     private void ApplyDamage()
     {
-        if (!HasStateAuthority) return; // Assurez-vous que seul l'objet ayant l'autoritÈ d'Ètat applique les dÈg‚ts
+        if (!HasStateAuthority) return; // Assurez-vous que seul l'objet ayant l'autorit√© d'√©tat applique les d√©g√¢ts
 
-        // Code pour appliquer les dÈg‚ts ‡ tous les ennemis dans la zone d'attaque
+        // Code pour appliquer les d√©g√¢ts √† tous les ennemis dans la zone d'attaque
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, attackRadius);
         foreach (var hitCollider in hitColliders)
         {
             if (hitCollider.CompareTag("Player") && hitCollider.gameObject != gameObject)
             {
-                // Obtenez l'instance de ThirdPersonController ‡ partir de hitCollider
+                // Obtenez l'instance de ThirdPersonController √† partir de hitCollider
                 ThirdPersonController playerHealth = hitCollider.GetComponent<ThirdPersonController>();
                 if (playerHealth != null)
                 {
@@ -73,7 +73,7 @@ public class SwordController : NetworkBehaviour
             }
             else if (hitCollider.CompareTag("Enemy"))
             {
-                // VÈrifiez si l'ennemi a un composant EnemyAI et appliquez les dÈg‚ts
+                // V√©rifiez si l'ennemi a un composant EnemyAI et appliquez les d√©g√¢ts
                 EnemyAI enemyAI = hitCollider.GetComponent<EnemyAI>();
                 if (enemyAI != null)
                 {
