@@ -14,6 +14,7 @@ Cinemachine: For advanced camera control.
 Input System: For handling modern input management.
 Photon Fusion: This is the networking solution we're using. You can download it from the Unity Asset Store or Photon’s website.
 Download and Import Models/Assets:
+![image](https://github.com/user-attachments/assets/87b88e63-2121-4917-b654-6af40b6ce838)
 
 If you have any 3D models, animations, or prefabs needed for characters, environments, or other elements, import them into the Assets/Models folder.
 3. Folder Structure Setup
