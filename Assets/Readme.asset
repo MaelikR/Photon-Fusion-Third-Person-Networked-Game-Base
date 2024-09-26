@@ -98,10 +98,6 @@ Script Errors:
 
 Always verify that your components are properly attached to GameObjects. Missing scripts or unassigned references can cause runtime errors.
 
-
-
-
-
 License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
