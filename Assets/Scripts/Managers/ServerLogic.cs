@@ -15,7 +15,7 @@ public class ServerLogic : NetworkBehaviour
     {
         if (Object.HasStateAuthority)
         {
-            int playerLevel = player.GetComponent<PlayerStats>().level;
+            int playerLevel = player.GetComponent<CharacterStats>().level;
 
             if (actionType == "Attack")
             {
@@ -27,7 +27,7 @@ public class ServerLogic : NetworkBehaviour
                 {
                     UnityEngine.Debug.Log("Attack validated successfully for " + player.name);
                     PlayFeedback("Attack", player.transform.position);
-                    ApplyStatusEffect(player, "PowerUp");
+           
 
                     if (UnityEngine.Random.value > 0.95f)
                     {
@@ -49,9 +49,9 @@ public class ServerLogic : NetworkBehaviour
                 UnityEngine.Debug.Log("Validating movement for " + player.name);
 
                 float maxSpeed = playerLevel * 0.1f;
-                var moveComponent = player.GetComponent<MovementComponent>();
-                
-                if (moveComponent != null && moveComponent.currentSpeed <= maxSpeed)
+                var moveComponent = player.GetComponent<ThirdPersonController>();
+
+                if (moveComponent != null && moveComponent._speed <= maxSpeed)
                 {
                     UnityEngine.Debug.Log("Movement validated for " + player.name);
                     PlayFeedback("Move", player.transform.position);
@@ -94,24 +94,6 @@ public class ServerLogic : NetworkBehaviour
         }
     }
 
-    public void ApplyStatusEffect(GameObject player, string effectType)
-    {
-        PlayerStats stats = player.GetComponent<PlayerStats>();
-
-        if (stats != null)
-        {
-            if (effectType == "PowerUp")
-            {
-                stats.attackPower += 10;
-                UnityEngine.Debug.Log(player.name + " received a PowerUp! Attack increased.");
-            }
-            else if (effectType == "Slow")
-            {
-                stats.movementSpeed *= 0.5f;
-                UnityEngine.Debug.Log(player.name + " has been slowed! Movement speed reduced.");
-            }
-        }
-    }
 
     public void LogCombatAction(string actionDescription)
     {
