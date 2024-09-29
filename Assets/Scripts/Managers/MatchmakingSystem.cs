@@ -28,7 +28,7 @@ public class MatchmakingSystem : NetworkBehaviour
 		UnityEngine.Debug.Log("Raid started with " + queuedPlayers.Count + " players!");
 		foreach (var player in queuedPlayers)
 		{
-			// Commencer le raid avec les joueurs groupés
+			// Commencer le raid avec les joueurs groupÃ©s
 			UnityEngine.Debug.Log(player.name + " is participating in the raid.");
 		}
 
@@ -41,3 +41,4 @@ public class MatchmakingSystem : NetworkBehaviour
 		UnityEngine.Debug.Log("Matchmaking successful. Raid starting.");
 	}
 }
+// UnderDev
