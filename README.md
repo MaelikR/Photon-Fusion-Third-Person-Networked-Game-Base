@@ -83,7 +83,7 @@ Run multiple instances of the built game.
 Each instance represents a different player in the multiplayer environment.
 The project uses Photon Fusion to synchronize player movements, actions, and animations across the network.
 
-#Troubleshooting
+-Troubleshooting-
 
 Camera Issues
 Ensure the CinemachineBrain and FreeLookCamera are enabled for the local player.
