@@ -1,4 +1,4 @@
-# Photon-Fusion-Third-Person-Networked-Game-Base
+# Photon Fusion Third Person Networked Game Base
 This project is a third-person multiplayer game using Unity with Photon Fusion for networking. The game features a third-person controller setup with player movement, camera management using Cinemachine, and interaction with various game elements.
 ![image](https://github.com/user-attachments/assets/42641b03-0cca-49d5-8d52-72e6ede680bc)
 Overview
