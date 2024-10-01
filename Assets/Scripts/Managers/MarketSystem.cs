@@ -22,7 +22,7 @@ public class MarketSystem : NetworkBehaviour
 {
 	public List<MarketItem> marketItems { get; set; } = new List<MarketItem>();
 
-	// Ajouter un objet Ã  vendre sur le marchÃ©
+	// Ajouter un objet à vendre sur le marché
 	public void AddItemToMarket(MarketItem newItem)
 	{
 		if (Object.HasStateAuthority)
@@ -32,7 +32,7 @@ public class MarketSystem : NetworkBehaviour
 		}
 	}
 
-	// Acheter un objet du marchÃ©
+	// Acheter un objet du marché
 	public void BuyItemFromMarket(string itemName, int quantity, int playerMoney)
 	{
 		if (Object.HasStateAuthority)
@@ -40,14 +40,14 @@ public class MarketSystem : NetworkBehaviour
 			MarketItem item = marketItems.Find(i => i.itemName == itemName && i.quantity >= quantity);
 			if (item != null && playerMoney >= item.price * quantity)
 			{
-				// Transaction rÃ©ussie
+				// Transaction réussie
 				item.quantity -= quantity;
 				RPC_UpdateMarket();
-				UnityEngine.Debug.Log("Transaction rÃ©ussie : " + quantity + " " + itemName);
+				UnityEngine.Debug.Log("Transaction réussie : " + quantity + " " + itemName);
 			}
 			else
 			{
-                UnityEngine.Debug.Log("Transaction Ã©chouÃ©e : item ou fonds insuffisants.");
+                UnityEngine.Debug.Log("Transaction échouée : item ou fonds insuffisants.");
 			}
 		}
 	}
@@ -61,4 +61,3 @@ public class MarketSystem : NetworkBehaviour
 		}
 	}
 }
-// UnderDev

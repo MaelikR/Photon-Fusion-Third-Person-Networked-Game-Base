@@ -65,7 +65,7 @@ public class DialogueSystem : NetworkBehaviour
             choiceButtons[i].gameObject.SetActive(true);
             choiceButtons[i].GetComponentInChildren<Text>().text = dialogue.playerChoices[i];
 
-            int choiceIndex = i; // NÃ©cessaire pour capturer correctement l'index dans un contexte de fermeture
+            int choiceIndex = i; // Nécessaire pour capturer correctement l'index dans un contexte de fermeture
             choiceButtons[i].onClick.AddListener(() => OnPlayerChoiceMade(choiceIndex, dialogue));
         }
     }
