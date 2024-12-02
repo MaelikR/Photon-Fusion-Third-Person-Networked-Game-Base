@@ -1,7 +1,7 @@
 using UnityEngine;
 using Fusion;
 
-public class FirstPersonController : NetworkBehaviour
+public class ThirdPersonController : NetworkBehaviour
 {
     [Header("Movement Settings")]
     public float LookSensitivity = 1.0f;
