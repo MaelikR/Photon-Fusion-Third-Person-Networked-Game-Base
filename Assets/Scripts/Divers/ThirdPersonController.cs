@@ -1,7 +1,7 @@
 using UnityEngine;
 using Fusion;
 
-public class ThirdPersonController : NetworkBehaviour
+public class FirstPersonController : NetworkBehaviour
 {
     [Header("Movement Settings")]
     public float LookSensitivity = 1.0f;
@@ -75,40 +75,12 @@ public class ThirdPersonController : NetworkBehaviour
         }
     }
 
-    private void CheckSwimming()
-    {
-        RaycastHit hit;
-        if (Physics.Raycast(transform.position, Vector3.down, out hit, 1f, WaterLayer))
-        {
-            if (!_isSwimming)
-            {
-                _isSwimming = true;
-                _isFlying = false;
-                if (_animator != null)
-                {
-                    _animator.SetBool("isSwimming", true);
-                }
-            }
-        }
-        else
-        {
-            if (_isSwimming)
-            {
-                _isSwimming = false;
-                if (_animator != null)
-                {
-                    _animator.SetBool("isSwimming", false);
-                }
-            }
-        }
-    }
-
-    private void FixedUpdateNetwork()
+    public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority) return;
 
-        CheckGrounded(); // Met à jour l'état du sol
-        CheckSwimming(); // Vérifie si le joueur est dans l'eau
+        GetInput(out NetworkInputData input);
+        ProcessInput(input);
 
         if (_isSwimming)
         {
@@ -127,7 +99,6 @@ public class ThirdPersonController : NetworkBehaviour
         Look();
         UpdateAnimations();
     }
-
 
     private void GetInput(out NetworkInputData inputData)
     {
@@ -148,30 +119,23 @@ public class ThirdPersonController : NetworkBehaviour
         _inputLook = new Vector2(inputData.LookX, inputData.LookY);
         _inputJump = inputData.Jump;
 
+        // Gestion du basculement en mode vol
         if (inputData.ToggleFlying)
         {
             if (transformationController != null && transformationController.GetCurrentForm() == "Werewolf")
             {
                 Debug.LogWarning("Cannot fly in Werewolf form!");
-                return;
+                return; // Ne pas permettre le vol si en forme de loup-garou
             }
 
-            // Basculer entre vol et autres états
             IsFlying = !IsFlying;
             _isFlying = IsFlying;
-            _isSwimming = false;
 
+            // Interaction avec TransformationController pour des effets
             if (transformationController != null)
             {
                 transformationController.ToggleFlyingForm(_isFlying);
             }
-        }
-
-        // Désactiver le vol si on touche l'eau
-        if (_isSwimming)
-        {
-            _isFlying = false;
-            IsFlying = false;
         }
     }
 
@@ -214,38 +178,21 @@ public class ThirdPersonController : NetworkBehaviour
         Vector3 move = moveDirection * targetSpeed * Runner.DeltaTime;
         _controller.Move(move + new Vector3(0, _verticalVelocity, 0) * Runner.DeltaTime);
     }
-    private void CheckGrounded()
-    {
-        _isGrounded = Physics.CheckSphere(transform.position - new Vector3(0, _controller.height / 2, 0), 0.2f, GroundLayers);
-
-        if (!_isFlying && !_isSwimming && !_isGrounded)
-        {
-            _verticalVelocity += Gravity * Runner.DeltaTime;
-        }
-        else if (_isGrounded)
-        {
-            _verticalVelocity = -2f; // Réinitialise la gravité pour éviter l'accumulation
-        }
-    }
 
     private void FlyMove()
     {
         Vector3 forward = PlayerCamera.transform.forward;
         Vector3 right = PlayerCamera.transform.right;
 
-        forward.y = 0;
-        right.y = 0;
-
-        Vector3 moveDirection = (forward * _inputMove.y + right * _inputMove.x).normalized;
-
+        Vector3 moveDirection = forward * _inputMove.y + right * _inputMove.x;
         float verticalMove = 0f;
+
         if (Input.GetKey(KeyCode.E)) verticalMove = 1;
         if (Input.GetKey(KeyCode.Q)) verticalMove = -1;
 
-        Vector3 flyMovement = new Vector3(moveDirection.x, verticalMove, moveDirection.z) * FlySpeed * Runner.DeltaTime;
+        Vector3 flyMovement = (moveDirection + Vector3.up * verticalMove).normalized * FlySpeed * Runner.DeltaTime;
         _controller.Move(flyMovement);
     }
-
 
     private void JumpAndGravity()
     {
