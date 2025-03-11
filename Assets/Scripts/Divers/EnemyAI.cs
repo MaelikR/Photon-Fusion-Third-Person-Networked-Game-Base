@@ -1,31 +1,192 @@
 using Fusion;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.AI; // Import the NavMesh for pathfinding
 
-public class EnemyAI : NetworkBehaviour, IDamageable
+public enum EnemyState
 {
-    public Transform targetPlayer; // The player that the enemy will follow
-    public float moveSpeed = 3f;
-    public float sprintSpeed = 6f;
-    public float jumpForce = 7f;
-    private Vector3 _input;
-    private bool isGrounded;
-    private NetworkObject networkObject;
-    private CharacterController characterController;
-    private Animator animator;
-    private Vector3 velocity;
-    public float gravity = -9.81f;
-    private NavMeshAgent navMeshAgent; // NavMeshAgent for pathfinding
-    public float detectionRange = 10f; // Range within which the enemy detects the player
-    public float attackRange = 2f; // Range within which the enemy starts attacking
-    private bool isSprinting;
-    public float health = 10f; // Santé de l'ennemi
+    Patrolling,
+    Chasing,
+    Attacking,
+    Idle
+}
 
-    // Implémentez correctement la méthode TakeDamage avec deux paramètres
+public class EnemyAIAttack : NetworkBehaviour, IDamageable
+{
+    [Header("Movement Settings")]
+    public float moveSpeed = 3f;
+    public Transform[] waypoints;
+    public float waypointTolerance = 0.5f;
+    public float pauseDuration = 2f;
+
+    [Header("Audio Settings")]
+    public AudioSource audioSource;
+    public AudioClip attackSound;
+    public AudioClip chaseSound;
+    public AudioClip deathSound;
+    public AudioClip patrolSound;
+
+    [Header("Combat Settings")]
+    public float health = 100f;
+    public float attackRange = 2f;
+    public float attackDamage = 15f;
+    public float attackCooldown = 1.5f;
+
+    private NetworkCharacterController characterController;
+    private Animator animator;
+    private Transform targetPlayer;
+    private float nextAttackTime = 0f;
+    private EnemyState currentState = EnemyState.Patrolling;
+
+    private bool isPaused = false;
+    private int currentWaypointIndex = 0;
+
+    void Start()
+    {
+        characterController = GetComponent<NetworkCharacterController>();
+        animator = GetComponent<Animator>();
+    }
+
+    public override void FixedUpdateNetwork()
+    {
+        if (!HasStateAuthority) return;
+
+        HandleMovement();
+
+        switch (currentState)
+        {
+            case EnemyState.Patrolling:
+                Patrol();
+                break;
+            case EnemyState.Chasing:
+                Chase();
+                break;
+            case EnemyState.Attacking:
+                Attack();
+                break;
+        }
+    }
+
+    private void HandleMovement()
+    {
+        if (targetPlayer == null) return;
+
+        if (currentState == EnemyState.Chasing)
+        {
+            MoveTowards(targetPlayer.position);
+        }
+    }
+
+    private void MoveTowards(Vector3 targetPosition)
+    {
+        Vector3 direction = (targetPosition - transform.position).normalized;
+        Vector3 velocity = direction * moveSpeed;
+
+        characterController.Move(velocity);
+
+        float speed = velocity.magnitude;
+        animator.SetFloat("Speed", speed);
+        animator.SetBool("isWalking", speed > 0.1f);
+    }
+
+    private void Patrol()
+    {
+        if (waypoints.Length == 0 || isPaused) return;
+
+        Transform targetWaypoint = waypoints[currentWaypointIndex];
+        float distanceToWaypoint = Vector3.Distance(transform.position, targetWaypoint.position);
+        if (patrolSound != null && audioSource != null && !audioSource.isPlaying)
+        {
+            audioSource.PlayOneShot(patrolSound);
+        }
+
+        if (distanceToWaypoint <= waypointTolerance)
+        {
+            StartCoroutine(PauseAtWaypoint());
+            return;
+        }
+
+        MoveTowards(targetWaypoint.position);
+    }
+
+    private void Chase()
+    {
+        if (targetPlayer == null) return;
+
+        float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
+
+        if (distanceToPlayer <= attackRange)
+        {
+            currentState = EnemyState.Attacking;
+        }
+        else
+        {
+            if (chaseSound != null && audioSource != null && !audioSource.isPlaying)
+            {
+                audioSource.PlayOneShot(chaseSound);
+            }
+
+            MoveTowards(targetPlayer.position);
+        }
+    }
+    private void Attack()
+    {
+        if (targetPlayer == null) return;
+
+        if (Time.time >= nextAttackTime)
+        {
+            nextAttackTime = Time.time + attackCooldown;
+            StartCoroutine(PerformAttack());
+        }
+    }
+
+    private IEnumerator PerformAttack()
+    {
+        animator.SetTrigger("Attack");
+
+        // Wait for the attack animation to finish
+        yield return new WaitForSeconds(0.5f);
+
+        if (targetPlayer != null)
+        {
+            float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
+            if (distanceToPlayer <= attackRange)
+            {
+                IDamageable damageable = targetPlayer.GetComponent<IDamageable>();
+                if (damageable != null)
+                {
+                    if (attackSound != null && audioSource != null)
+                    {
+                        audioSource.PlayOneShot(attackSound);
+                    }
+
+                    damageable.TakeDamage(attackDamage, gameObject);  // Use IDamageable interface
+                    Debug.Log($"Attack dealt {attackDamage} damage to player at position {targetPlayer.position}.");
+                }
+            }
+        }
+    }
+
+    private IEnumerator PauseAtWaypoint()
+    {
+        isPaused = true;
+        animator.SetBool("isWalking", false);
+        yield return new WaitForSeconds(pauseDuration);
+        currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
+        isPaused = false;
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_TakeDamage(float damage, NetworkObject attacker)
+    {
+        TakeDamage(damage, attacker != null ? attacker.gameObject : null);
+    }
+
     public void TakeDamage(float damage, GameObject attacker)
     {
+        if (!HasStateAuthority) return;
+
         health -= damage;
-        Debug.Log($"{attacker.name} dealt {damage} damage to enemy. Remaining health: {health}");
+        Debug.Log($"Enemy took {damage} damage from {attacker?.name ?? "unknown"}. Current health: {health}");
 
         if (health <= 0)
         {
@@ -35,154 +196,45 @@ public class EnemyAI : NetworkBehaviour, IDamageable
 
     private void Die()
     {
-        Debug.Log("Enemy died");
-        Destroy(gameObject); // Détruit l'ennemi
+        if (deathSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(deathSound);
+        }
+
+        Debug.Log("Enemy died.");
+        animator.SetTrigger("Die");
+        Destroy(gameObject, 2.3f);
     }
 
-    void Start()
+    // Trigger-based player detection
+    private void OnTriggerEnter(Collider other)
     {
-        characterController = GetComponent<CharacterController>();
-        animator = GetComponent<Animator>();
-        networkObject = GetComponent<NetworkObject>();
-        navMeshAgent = GetComponent<NavMeshAgent>();
-
-        if (animator == null)
+        if (other.CompareTag("Player"))
         {
-            Debug.LogError("Animator component is missing on the enemy GameObject.");
+            // Player detected, start chasing
+            targetPlayer = other.transform;
+            currentState = EnemyState.Chasing;
+            Debug.Log("Player detected in range.");
         }
-
-        if (characterController == null)
-        {
-            Debug.LogError("CharacterController component is missing on the enemy GameObject.");
-        }
-
-        if (navMeshAgent == null)
-        {
-            Debug.LogError("NavMeshAgent component is missing on the enemy GameObject.");
-        }
-
-        navMeshAgent.speed = moveSpeed;
-        navMeshAgent.stoppingDistance = attackRange; // Distance to stop from the target
     }
 
-    void Update()
+    private void OnTriggerExit(Collider other)
     {
-        if (HasStateAuthority == false)
+        if (other.CompareTag("Player"))
         {
-            return;
-        }
-
-        HandleMovement();
-        CheckForJump();
-    }
-
-    void HandleMovement()
-    {
-        if (targetPlayer == null)
-        {
-            return;
-        }
-
-        float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-
-        // If the player is within detection range, follow the player
-        if (distanceToPlayer <= detectionRange)
-        {
-            navMeshAgent.SetDestination(targetPlayer.position);
-
-            // If the player is close enough, start sprinting
-            if (distanceToPlayer <= 5f)
+            // Player leaves the detection area
+            if (targetPlayer == other.transform)
             {
-                isSprinting = true;
-                navMeshAgent.speed = sprintSpeed;
-            }
-            else
-            {
-                isSprinting = false;
-                navMeshAgent.speed = moveSpeed;
-            }
-
-            // Adjust the movement input based on the NavMeshAgent
-            _input = navMeshAgent.velocity.normalized;
-
-            // Rotate the enemy to face the player
-            Vector3 lookDirection = targetPlayer.position - transform.position;
-            lookDirection.y = 0f;
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 5f);
-
-            // Set the speed parameter for the animator
-            if (animator != null)
-            {
-                animator.SetFloat("Speed", navMeshAgent.velocity.magnitude);
-            }
-        }
-        else
-        {
-            navMeshAgent.ResetPath();
-            _input = Vector3.zero;
-
-            if (animator != null)
-            {
-                animator.SetFloat("Speed", 0);
+                targetPlayer = null;
+                currentState = EnemyState.Patrolling;
+                Debug.Log("Player left the detection range.");
             }
         }
     }
 
-    void CheckForJump()
+    private void OnDrawGizmosSelected()
     {
-        // If there's an obstacle in front of the enemy, make it jump
-        if (isGrounded && Physics.Raycast(transform.position, transform.forward, 1f))
-        {
-            Jump();
-        }
-    }
-
-    void Jump()
-    {
-        if (isGrounded)
-        {
-            if (characterController != null && characterController.enabled && characterController.gameObject.activeInHierarchy)
-            {
-                velocity.y = jumpForce;
-            }
-            isGrounded = false;
-        }
-    }
-
-    public override void FixedUpdateNetwork()
-    {
-        if (HasStateAuthority == false)
-        {
-            return;
-        }
-
-        ApplyGravity();
-        MoveEnemy();
-    }
-
-    void ApplyGravity()
-    {
-        if (isGrounded && velocity.y < 0)
-        {
-            velocity.y = -2f;
-        }
-
-        velocity.y += gravity * Runner.DeltaTime;
-    }
-
-    void MoveEnemy()
-    {
-        if (characterController != null && characterController.enabled && characterController.gameObject.activeInHierarchy)
-        {
-            characterController.Move((_input * navMeshAgent.speed + velocity) * Runner.DeltaTime);
-        }
-    }
-
-    private void OnControllerColliderHit(ControllerColliderHit hit)
-    {
-        if (hit.gameObject.CompareTag("Ground"))
-        {
-            isGrounded = true;
-        }
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }
