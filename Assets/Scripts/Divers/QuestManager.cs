@@ -11,67 +11,161 @@ public class Quest
     public bool isCompleted;
     public int currentProgress;
     public int goal;
-}
-namespace Unity.Cinemachine
-{
-    public class QuestManager : NetworkBehaviour
-    {
-        [SerializeField] // Permet d'afficher la liste des quêtes dans l'inspecteur Unity
-        private List<Quest> quests = new List<Quest>();
-        public List<Quest> Quests
-        {
-            get => quests;
-            set => quests = value;
-        }
 
-        public void AddQuest(Quest newQuest)
+    public Quest(string name, string description, int goal)
+    {
+        questName = name;
+        questDescription = description;
+        this.goal = goal;
+        currentProgress = 0;
+        isCompleted = false;
+    }
+}
+
+public class QuestManager : NetworkBehaviour
+{
+    [Header("Quests")]
+    [SerializeField] private List<Quest> allQuests = new List<Quest>();
+    private List<Quest> completedQuests = new List<Quest>();
+
+    [Header("UI Manager")]
+    public UIManager uiManager;
+
+    private void Start()
+    {
+        if (uiManager == null)
         {
-            if (Object.HasStateAuthority)
+            uiManager = FindObjectOfType<UIManager>();
+            if (uiManager == null)
             {
-                quests.Add(newQuest);
-                RPC_UpdateQuestLog(newQuest.questName);
+                Debug.LogError("UIManager not found in the scene. Please assign it in the inspector.");
+                return;
             }
         }
+      
+      
+    }
+    public override void Spawned()
+    {
+        base.Spawned();
 
-
-        public void UpdateQuestProgress(Quest quest, int progress)
+        if (Object == null || !Object.IsValid)
         {
-            if (Object.HasStateAuthority && quests.Contains(quest))
+            Debug.LogError("NetworkObject not valid in QuestManager.");
+            return;
+        }
+
+        Debug.Log("QuestManager initialized and ready.");
+        InitializeQuests();
+    }
+
+    private Dictionary<string, Quest> questDictionary = new Dictionary<string, Quest>();
+
+    private void InitializeQuests()
+    {
+        allQuests.Add(new Quest("Collect Wood", "Collect 10 pieces of wood.", 10));
+        allQuests.Add(new Quest("Build Shelter", "Build a small shelter.", 1));
+        allQuests.Add(new Quest("Light Fire", "Light a fire at your shelter.", 1));
+
+        foreach (Quest quest in allQuests)
+        {
+            questDictionary[quest.questName] = quest;
+
+            // Appel correct de la mÃ©thode RPC dans UIManager
+            if (uiManager != null)
+            {
+                uiManager.RPC_UpdateQuestLog($"Quest Added: {quest.questName}");
+            }
+            else
+            {
+                Debug.LogError("UIManager is not assigned.");
+            }
+        }
+    }
+
+
+    public void AddQuest(string name, string description, int goal)
+    {
+        if (IsStateAuthority() && !questDictionary.ContainsKey(name))
+        {
+            Quest newQuest = new Quest(name, description, goal);
+            allQuests.Add(newQuest);
+            questDictionary[name] = newQuest;
+            uiManager.RPC_UpdateQuestLog($"New Quest Added: {name}");
+        }
+        else
+        {
+            Debug.LogWarning($"Quest {name} already exists!");
+        }
+    }
+
+    public void UpdateQuestProgress(string questName, int progress)
+    {
+        if (questDictionary.TryGetValue(questName, out Quest quest))
+        {
+            if (!quest.isCompleted)
             {
                 quest.currentProgress += progress;
                 if (quest.currentProgress >= quest.goal)
                 {
                     quest.isCompleted = true;
-                    RPC_UpdateQuestLog(quest.questName + " completed");
+                    completedQuests.Add(quest);
+                    uiManager?.RPC_UpdateQuestLog($"Quest Completed: {quest.questName}");
+                    uiManager?.ShowNotification($"Quest Completed: {quest.questName}");
                 }
                 else
                 {
-                    RPC_UpdateQuestLog(quest.questName + " progress: " + quest.currentProgress + "/" + quest.goal);
+                    uiManager?.RPC_UpdateQuestLog($"Quest Progress: {quest.questName} ({quest.currentProgress}/{quest.goal})");
+                    uiManager?.UpdateProgressBar((float)quest.currentProgress / quest.goal);
                 }
             }
         }
+    }
 
-        private UIManager uiManager;
 
-        private void Start()
+    public void CompleteQuest(string questName)
+    {
+        if (Object.HasStateAuthority)
         {
-            UIManager foundManager = FindFirstObjectByType<UIManager>();
-            if (uiManager == null)
+            Quest quest = allQuests.Find(q => q.questName == questName);
+            if (quest != null && !quest.isCompleted)
             {
-                Debug.LogError("UIManager not found. Make sure UIManager is present in the scene.");
+                quest.isCompleted = true;
+                completedQuests.Add(quest);
+                uiManager.RPC_UpdateQuestLog($"Quest Completed: {quest.questName}");
             }
         }
+    }
 
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        public void RPC_UpdateQuestLog(string questUpdate)
-        {
-            Debug.Log("Quest Log Updated: " + questUpdate);
+    public List<Quest> GetAllQuests()
+    {
+        return allQuests;
+    }
 
-            if (uiManager != null)
-            {
-                uiManager.RPC_UpdateQuestLog(questUpdate);
-            }
-        }
+    public List<Quest> GetCompletedQuests()
+    {
+        return completedQuests;
+    }
 
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_AddQuestToLog(string questName)
+    {
+        uiManager.RPC_UpdateQuestLog($"New Quest: {questName}");
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_UpdateQuestProgress(string questName, int currentProgress, int goal)
+    {
+        uiManager.RPC_UpdateQuestLog($"Quest Progress: {questName} ({currentProgress}/{goal})");
+    }
+    private bool IsStateAuthority()
+    {
+        return Object.HasStateAuthority;
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_CompleteQuest(string questName)
+    {
+        uiManager.RPC_UpdateQuestLog($"Quest Completed: {questName}");
     }
 }
