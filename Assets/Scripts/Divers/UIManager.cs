@@ -1,84 +1,164 @@
 using Fusion;
-using System.Diagnostics;
-using System;
 using UnityEngine;
 using UnityEngine.UI;
-using NUnit.Framework;
 
-namespace Fusion
+public class UIManager : NetworkBehaviour
 {
-    public class UIManager : NetworkBehaviour
+    [Header("Texts")]
+    public Text questLog;
+    public Text stateText;
+    public Text notificationText;
+
+    [Header("Progress and Notifications")]
+    public Slider progressBar;
+    public GameObject notificationPanel;
+
+    [Header("Inventory")]
+    public GameObject inventoryUI;
+    public GameObject inventorySlotPrefab;
+
+    [Header("UI Settings")]
+    public Canvas uiCanvas;
+    public Color darkModeColor = Color.black;
+    public Color lightTextColor = Color.white;
+    public float notificationDuration = 2.0f;
+
+    public InventorySystem inventorySystem;
+
+    public override void Spawned()
     {
-        public Slider healthBar;
-        public Slider manaBar;
-        public UnityEngine.UI.Text questLog;
-        public InventorySystem inventorySystem;
-        public CharacterStats playerStats;
-        private ThirdPersonController playerInstance;
-        void Start()
+        if (!HasStateAuthority)
         {
-            if (Object.HasInputAuthority)
-            {
-                CharacterStats foundManager = FindFirstObjectByType<CharacterStats>();
-            }
-
-            // Assurez-vous que questLog est assigné
-            if (questLog == null)
-            {
-                questLog = GameObject.Find("QuestLogText").GetComponent<UnityEngine.UI.Text>();
-            }
+            DisableLocalUI();
+            return;
         }
 
-        public void SetPlayerInstance(ThirdPersonController player)
-        {
-            playerInstance = player;
-        }
+        InitializeUI();
 
-        public override void FixedUpdateNetwork()
+        QuestManager questManager = FindObjectOfType<QuestManager>();
+        if (questManager != null)
         {
-            if (playerInstance != null && Object.HasInputAuthority)
+            foreach (Quest quest in questManager.GetAllQuests())
             {
-                UpdateHealthBar();
-                UpdateManaBar();
+                RPC_UpdateQuestLog($"Existing Quest: {quest.questName} ({quest.currentProgress}/{quest.goal})");
             }
         }
-
-
-        void UpdateHealthBar()
+        else
         {
-            if (playerInstance != null)
-            {
-                healthBar.maxValue = playerInstance.GetMaxHealth();
-                healthBar.value = playerInstance.GetCurrentHealth();
-            }
+            Debug.LogError("QuestManager not found in the scene.");
+        }
+    }
+
+    private void InitializeUI()
+    {
+        ApplyDarkMode();
+        if (questLog == null || inventoryUI == null)
+        {
+            Debug.LogError("UI components are not fully assigned. Please check the inspector.");
+        }
+    }
+
+    private void ApplyDarkMode()
+    {
+        Image canvasImage = uiCanvas.GetComponent<Image>();
+        if (canvasImage != null)
+        {
+            canvasImage.color = darkModeColor;
         }
 
-        void UpdateManaBar()
+        foreach (var textElement in uiCanvas.GetComponentsInChildren<Text>())
         {
-            if (playerInstance != null)
-            {
-                manaBar.maxValue = playerInstance.GetMaxMana();
-                manaBar.value = playerInstance.GetCurrentMana();
-            }
+            textElement.color = lightTextColor;
+        }
+    }
+
+    public void UpdateInventoryUI()
+    {
+        if (inventoryUI == null || inventorySlotPrefab == null)
+        {
+            Debug.LogError("Inventory UI or Slot Prefab is not assigned.");
+            return;
         }
 
-        [Rpc(RpcSources.All, RpcTargets.All)]
-        public void RPC_UpdateQuestLog(string newQuest)
+        foreach (Transform child in inventoryUI.transform)
         {
-            if (Object.HasStateAuthority || Object.HasInputAuthority)
-            {
-                UnityEngine.Debug.Log("Updating quest log with: " + newQuest);
-                questLog.text += "\n" + newQuest;
-            }
+            Destroy(child.gameObject);
         }
 
-
-        public void UpdateInventoryUI()
+        if (inventorySystem == null)
         {
-            foreach (Item item in inventorySystem.inventory)
+            Debug.LogError("Inventory System is not assigned.");
+            return;
+        }
+
+        foreach (Item item in inventorySystem.inventory)
+        {
+            GameObject slot = Instantiate(inventorySlotPrefab, inventoryUI.transform);
+            Text slotText = slot.GetComponentInChildren<Text>();
+            if (slotText != null)
             {
-                UnityEngine.Debug.Log("Inventory Item: " + item.itemName);
+                slotText.text = item.itemName;
             }
+        }
+    }
+
+    public void ShowNotification(string message)
+    {
+        if (notificationPanel != null && notificationText != null)
+        {
+            notificationPanel.SetActive(true);
+            notificationText.text = message;
+            Invoke(nameof(HideNotification), notificationDuration);
+        }
+        else
+        {
+            Debug.LogError("Notification Panel or Text is not assigned.");
+        }
+    }
+
+    private void HideNotification()
+    {
+        if (notificationPanel != null)
+        {
+            notificationPanel.SetActive(false);
+        }
+    }
+
+    public void UpdateStateText(string state)
+    {
+        if (stateText != null)
+        {
+            stateText.text = $"Current State: {state}";
+        }
+    }
+
+    public void UpdateProgressBar(float progress)
+    {
+        if (progressBar != null)
+        {
+            progressBar.value = progress;
+        }
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_UpdateQuestLog(string newQuest)
+    {
+        if (questLog != null)
+        {
+            questLog.text += "\n" + newQuest;
+            Debug.Log($"Quest Log Updated: {newQuest}");
+        }
+        else
+        {
+            Debug.LogError("QuestLog Text component is not assigned.");
+        }
+    }
+
+    private void DisableLocalUI()
+    {
+        if (uiCanvas != null)
+        {
+            uiCanvas.gameObject.SetActive(false);
         }
     }
 }
