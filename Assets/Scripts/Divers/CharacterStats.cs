@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System;
 using UnityEngine;
 
-public class CharacterStats : NetworkBehaviour
+public class CharaStats : NetworkBehaviour
 {
 	public int maxHealth { get; set; }
 	public int currentHealth { get; set; }
@@ -12,13 +12,14 @@ public class CharacterStats : NetworkBehaviour
     public int level;
     public float healthRegenRate = 1f;
 	public float manaRegenRate = 1f;
+    public bool isInCombat = false;
 
-	private float healthRegenCooldown = 5f; // Temps avant de rÈgÈnÈrer
+    private float healthRegenCooldown = 5f; // Temps avant de r√©g√©n√©rer
 	private float manaRegenCooldown = 5f;
 
 	void Start()
 	{
-		if (Object.HasStateAuthority)
+		if (HasStateAuthority)
 		{
 			maxHealth = 100;
 			currentHealth = maxHealth;
@@ -29,7 +30,7 @@ public class CharacterStats : NetworkBehaviour
 
 	public override void FixedUpdateNetwork()
 	{
-		if (Object.HasStateAuthority)
+		if (HasStateAuthority)
 		{
 			RegenerateHealthAndMana();
 		}
@@ -37,10 +38,10 @@ public class CharacterStats : NetworkBehaviour
 
 	public void TakeDamage(int damage)
 	{
-		if (Object.HasStateAuthority)
+		if (HasStateAuthority)
 		{
 			currentHealth -= damage;
-			healthRegenCooldown = 5f; // Reset la rÈgÈnÈration aprËs avoir pris des dÈg‚ts
+			healthRegenCooldown = 5f; // Reset la r√©g√©n√©ration apr√®s avoir pris des d√©g√¢ts
 			if (currentHealth <= 0)
 			{
 				Die();
@@ -50,10 +51,10 @@ public class CharacterStats : NetworkBehaviour
 
 	public void UseMana(int manaCost)
 	{
-		if (Object.HasStateAuthority && currentMana >= manaCost)
+		if (HasStateAuthority && currentMana >= manaCost)
 		{
 			currentMana -= manaCost;
-			manaRegenCooldown = 5f; // Reset la rÈgÈnÈration aprËs avoir utilisÈ de la mana
+			manaRegenCooldown = 5f; // Reset la r√©g√©n√©ration apr√®s avoir utilis√© de la mana
 		}
 	}
 
@@ -69,7 +70,7 @@ public class CharacterStats : NetworkBehaviour
 			currentMana += Mathf.CeilToInt(manaRegenRate * Runner.DeltaTime);
 		}
 
-		// RÈduire le cooldown de la rÈgÈnÈration
+		// R√©duire le cooldown de la r√©g√©n√©ration
 		if (healthRegenCooldown > 0)
 		{
 			healthRegenCooldown -= Runner.DeltaTime;
@@ -83,6 +84,6 @@ public class CharacterStats : NetworkBehaviour
 	void Die()
 	{
 		UnityEngine.Debug.Log("Player has died.");
-		// GÈrer la mort ici (respawn, etc.)
+		// G√©rer la mort ici (respawn, etc.)
 	}
 }
