@@ -1,5 +1,5 @@
-using UnityEngine;
 using Fusion;
+using UnityEngine;
 
 public class ThirdPersonController : NetworkBehaviour
 {
@@ -10,18 +10,36 @@ public class ThirdPersonController : NetworkBehaviour
     public float MoveSpeed = 2.0f;
     public float SprintSpeed = 5.335f;
     public LayerMask GroundLayers;
+
+    [Header("Camera Settings")]
     public Camera PlayerCamera;
 
     [Header("Flying Settings")]
     public float FlySpeed = 5.0f;
-    private bool _isFlying = false;
-
+    
+    private bool isMoving;
+    private bool isFlyingSoundPlaying;
+   
     [Header("Swimming Settings")]
     public float SwimSpeed = 3.0f;
-    public float SurfaceHeight = 5f;
+    public float SwimSurfaceAdjustmentSpeed = 2.0f;
     public LayerMask WaterLayer;
-    private bool _isSwimming = false;
 
+    [Header("Audio Settings")]
+    public AudioSource audioSource;
+    public AudioClip footstepSound;
+    public AudioClip jumpSound;
+    public AudioClip landSound;
+    public AudioClip swimSound;
+    public AudioClip flySound;
+    public AudioClip waterEnterSound;
+    public AudioClip waterExitSound;
+    [Networked] private NetworkBool IsFlying { get; set; }
+    [Networked] private NetworkBool IsSwimming { get; set; }
+
+    private float waterSurfaceHeight;
+
+    [SerializeField]
     private CharacterController _controller;
     private float _verticalVelocity;
     private float _cameraPitch = 0f;
@@ -33,21 +51,43 @@ public class ThirdPersonController : NetworkBehaviour
     private bool _isGrounded;
     private Animator _animator;
 
-    [Networked] private bool IsLocalPlayer { get; set; }
-    [Networked] private NetworkBool IsFlying { get; set; }
+    [Networked] public bool IsLocalPlayer { get; set; }
 
-    // Références vers d'autres systèmes
-    private GameManager gameManager;
-    private ReincarnationManager reincarnationManager;
-    private TransformationController transformationController;
+
+    [Header("Components to Disable for Remote Players")]
+    public MonoBehaviour[] ComponentsToDisable;
+    public Renderer[] RenderersToDisable;
+
+    [Header("GameObjects to Disable for Remote Players")]
+    public GameObject[] GameObjectsToDisable;
 
     public override void Spawned()
     {
         IsLocalPlayer = HasStateAuthority;
 
-        if (!IsLocalPlayer && PlayerCamera != null)
+        Debug.Log($"Spawned: {gameObject.name}, IsLocalPlayer: {IsLocalPlayer}");
+
+        if (!IsLocalPlayer)
         {
-            PlayerCamera.gameObject.SetActive(false);
+            DisableNonLocalComponents();
+        }
+        else
+        {
+            if (PlayerCamera != null)
+            {
+                PlayerCamera.gameObject.SetActive(true);
+                Debug.Log("Local Player Camera activated.");
+            }
+        }
+    }
+
+
+
+    private void Start()
+    {
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
         }
     }
 
@@ -60,20 +100,54 @@ public class ThirdPersonController : NetworkBehaviour
         }
 
         _animator = GetComponent<Animator>();
+    }
 
-        // Obtenir les références vers les systèmes centraux
-        gameManager = GameManager.Instance;
-        if (gameManager != null)
+    private void DisableNonLocalComponents()
+    {
+        if (_controller != null)
         {
-            reincarnationManager = gameManager.reincarnationManager;
-            transformationController = gameManager.transformationController;
+            _controller.enabled = false;
+            Debug.Log("CharacterController disabled for remote player.");
         }
 
-        if (!HasStateAuthority && PlayerCamera != null)
+        foreach (var component in ComponentsToDisable)
         {
-            PlayerCamera.gameObject.SetActive(false);
+            if (component != null)
+            {
+                component.enabled = false;
+            }
+        }
+
+        foreach (var renderer in RenderersToDisable)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = false;
+            }
+        }
+
+        foreach (var obj in GameObjectsToDisable)
+        {
+            if (obj != null)
+            {
+                obj.SetActive(false);
+            }
+        }
+
+        Debug.Log($"Non-local components and GameObjects disabled for {gameObject.name}.");
+    }
+
+    private void UpdateStates()
+    {
+        _isGrounded = Physics.CheckSphere(transform.position + Vector3.down * 0.1f, 0.2f, GroundLayers);
+
+        // Ne passe en natation que si le joueur n'est pas en vol
+        if (!IsFlying)
+        {
+            IsSwimming = Physics.CheckSphere(transform.position, 0.5f, WaterLayer);
         }
     }
+
 
     public override void FixedUpdateNetwork()
     {
@@ -81,14 +155,13 @@ public class ThirdPersonController : NetworkBehaviour
 
         GetInput(out NetworkInputData input);
         ProcessInput(input);
-
-        if (_isSwimming)
-        {
-            Swim();
-        }
-        else if (_isFlying)
+        if (IsFlying)
         {
             FlyMove();
+        }
+        else if (IsSwimming)
+        {
+            Swim();
         }
         else
         {
@@ -99,7 +172,6 @@ public class ThirdPersonController : NetworkBehaviour
         Look();
         UpdateAnimations();
     }
-
     private void GetInput(out NetworkInputData inputData)
     {
         inputData = new NetworkInputData
@@ -119,49 +191,30 @@ public class ThirdPersonController : NetworkBehaviour
         _inputLook = new Vector2(inputData.LookX, inputData.LookY);
         _inputJump = inputData.Jump;
 
-        // Gestion du basculement en mode vol
         if (inputData.ToggleFlying)
         {
-            if (transformationController != null && transformationController.GetCurrentForm() == "Werewolf")
-            {
-                Debug.LogWarning("Cannot fly in Werewolf form!");
-                return; // Ne pas permettre le vol si en forme de loup-garou
-            }
-
             IsFlying = !IsFlying;
-            _isFlying = IsFlying;
-
-            // Interaction avec TransformationController pour des effets
-            if (transformationController != null)
-            {
-                transformationController.ToggleFlyingForm(_isFlying);
-            }
         }
     }
-
-
     private void Swim()
     {
         Vector3 forward = PlayerCamera.transform.forward;
         Vector3 right = PlayerCamera.transform.right;
 
-        forward.y = 0;
+        forward.y = 0; // Empêche le mouvement vertical
         right.y = 0;
 
-        forward.Normalize();
-        right.Normalize();
+        Vector3 moveDirection = (forward * _inputMove.y + right * _inputMove.x).normalized * SwimSpeed;
 
-        Vector3 moveDirection = forward * _inputMove.y + right * _inputMove.x;
-        Vector3 swimMovement = moveDirection.normalized * SwimSpeed * Runner.DeltaTime;
+        // Ajuste progressivement la position du joueur pour rester à la surface
+        float targetY = Mathf.Lerp(transform.position.y, waterSurfaceHeight, SwimSurfaceAdjustmentSpeed * Time.deltaTime);
+        Vector3 swimMovement = new Vector3(moveDirection.x, targetY - transform.position.y, moveDirection.z);
 
-        swimMovement.y = 0; // Maintenir la hauteur à la surface
-        transform.position = new Vector3(transform.position.x, SurfaceHeight, transform.position.z);
-
-        _controller.Move(swimMovement);
-
-        if (_animator != null)
+        _controller.Move(swimMovement * Runner.DeltaTime);
+        // Gestion du son de nage
+        if (!audioSource.isPlaying)
         {
-            _animator.SetBool("isSwimming", true);
+            PlaySound(swimSound);
         }
     }
 
@@ -171,12 +224,25 @@ public class ThirdPersonController : NetworkBehaviour
 
         Vector3 forward = PlayerCamera.transform.forward;
         Vector3 right = PlayerCamera.transform.right;
-        forward.y = 0f;
-        right.y = 0f;
+
+        forward.y = 0;
+        right.y = 0;
 
         Vector3 moveDirection = (forward * _inputMove.y + right * _inputMove.x).normalized;
         Vector3 move = moveDirection * targetSpeed * Runner.DeltaTime;
+
         _controller.Move(move + new Vector3(0, _verticalVelocity, 0) * Runner.DeltaTime);
+        // Gestion du son des pas
+        if (_inputMove.magnitude > 0 && _isGrounded && !isMoving)
+        {
+            isMoving = true;
+            PlaySoundLoop(footstepSound);
+        }
+        else if (_inputMove.magnitude == 0 || !_isGrounded)
+        {
+            isMoving = false;
+            StopSound();
+        }
     }
 
     private void FlyMove()
@@ -191,26 +257,53 @@ public class ThirdPersonController : NetworkBehaviour
         if (Input.GetKey(KeyCode.Q)) verticalMove = -1;
 
         Vector3 flyMovement = (moveDirection + Vector3.up * verticalMove).normalized * FlySpeed * Runner.DeltaTime;
+        // Gestion du son de vol
+        if (!isFlyingSoundPlaying)
+        {
+            isFlyingSoundPlaying = true;
+            PlaySoundLoop(flySound);
+        }
         _controller.Move(flyMovement);
     }
 
     private void JumpAndGravity()
     {
-        if (_isGrounded && !_isFlying)
+        if (IsFlying || IsSwimming)
         {
-            _verticalVelocity = -2f;
-
-            if (_inputJump)
+            _verticalVelocity = 0f;
+            return;
+            if (_isGrounded)
             {
-                _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+                _verticalVelocity = -2f;
+                if (_inputJump)
+                {
+                    PlaySound(jumpSound);
+                    _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+                }
+               
             }
         }
-        else if (!_isFlying)
+        else
         {
             _verticalVelocity += Gravity * Runner.DeltaTime;
         }
 
         _controller.Move(new Vector3(0, _verticalVelocity, 0) * Runner.DeltaTime);
+    }
+
+
+    //gravity scale updated
+    private float gravityScale = 1.0f;
+
+    private void updateGravityScale()
+    {
+        if (IsFlying)
+            gravityScale = 0.1f;
+        else if (IsSwimming)
+            gravityScale = 0.2f;
+        else
+            gravityScale = 1.0f;
+        Gravity = -9.81f * gravityScale;
     }
 
     private void Look()
@@ -227,14 +320,94 @@ public class ThirdPersonController : NetworkBehaviour
     {
         if (_animator != null)
         {
-            _animator.SetBool("isFlying", _isFlying);
+            _animator.SetBool("isFlying", IsFlying);
             _animator.SetBool("isGrounded", _isGrounded);
             _animator.SetBool("isWalking", _inputMove.magnitude > 0);
-            _animator.SetBool("isSwimming", _isSwimming);
+            _animator.SetBool("isSwimming", IsSwimming);
+        }
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.layer == LayerMask.NameToLayer("Water"))
+        {
+            IsSwimming = true;
+            waterSurfaceHeight = other.bounds.max.y;
+            PlaySound(waterEnterSound);
         }
     }
 
-    private struct NetworkInputData : INetworkInput
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.gameObject.layer == LayerMask.NameToLayer("Water"))
+        {
+            IsSwimming = false;
+            PlaySound(waterExitSound);
+        }
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (clip != null)
+        {
+            audioSource.clip = clip;
+            audioSource.Play();
+        }
+    }
+
+    private void PlaySoundLoop(AudioClip clip)
+    {
+        if (clip != null && audioSource.clip != clip)
+        {
+            audioSource.clip = clip;
+            audioSource.loop = true;
+            audioSource.Play();
+        }
+    }
+
+    private void StopSound()
+    {
+        audioSource.loop = false;
+        audioSource.Stop();
+    }
+
+    public void OnDestroy()
+    {
+        Debug.Log($"Cleaning up ThirdPersonController resources for {gameObject.name}");
+
+        // Désactiver la caméra locale uniquement si elle appartient à ce joueur
+        if (IsLocalPlayer && PlayerCamera != null)
+        {
+            PlayerCamera.gameObject.SetActive(false);
+            Debug.Log("Local Player Camera deactivated.");
+        }
+
+        // Nettoyage des animations (si nécessaires)
+        if (_animator != null)
+        {
+            _animator.enabled = false;
+            Debug.Log("Animator disabled.");
+        }
+
+        // Désactiver ou nettoyer les composants réseau
+        if (Object != null && Object.HasStateAuthority)
+        {
+            // Si l'objet possède une autorité réseau, faites un nettoyage spécifique
+            Runner.Despawn(Object);
+            Debug.Log("Network object despawned.");
+        }
+
+        // Désactiver ou réinitialiser tous les composants spécifiques au joueur
+        DisableNonLocalComponents();
+
+        // Libérer les références locales
+        _controller = null;
+        _animator = null;
+
+        Debug.Log("ThirdPersonController fully cleaned up.");
+    }
+
+
+    public struct NetworkInputData : INetworkInput
     {
         public float MoveX;
         public float MoveY;
