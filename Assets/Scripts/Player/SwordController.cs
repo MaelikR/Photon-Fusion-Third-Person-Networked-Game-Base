@@ -1,86 +1,124 @@
 using Fusion;
-using StarterAssets;
 using UnityEngine;
 
 public class SwordController : NetworkBehaviour
 {
+    [Header("Attack Settings")]
     public Animator animator;
-    public int swordDamage = 50;
-    private bool isSwordDrawn = false;
-    public float attackRadius = 1.2f;
+    public Transform swordTransform;
+    public LayerMask enemyLayer;
+    public float attackRange = 1.5f;
+    public int baseDamage = 10;
+    private float attackCooldown = 1f;
+    private float nextAttackTime = 0f;
 
-    void Update()
+    public int heavyAttackDamage = 25;
+    private float heavyAttackCooldown = 3f;
+    private float nextHeavyAttackTime = 0f;
+
+    [Header("Animation Settings")]
+    public string[] attackAnimations; // Liste des animations pour attaque normale
+    public string heavyAttackAnimation = "HeavyAttack";
+
+    [Header("Audio Settings")]
+    public AudioSource audioSource;
+    public AudioClip swordSwingSound;
+    public AudioClip heavyAttackSound;
+    public AudioClip criticalHitSound;
+
+    private bool isAttacking = false;
+
+    private void Update()
     {
-        if (!HasInputAuthority) return; // Assurez-vous que seul le propriétaire de l'objet puisse le contrôler
-
-        if (Input.GetKeyDown(KeyCode.E)) // Touche pour dégainer/rengainer
+        if (HasStateAuthority)
         {
-            if (isSwordDrawn)
+            // Attaque normale (clic gauche)
+            if (Input.GetMouseButtonDown(0) && Time.time >= nextAttackTime)
             {
-                RPC_SheathSword();
+                nextAttackTime = Time.time + attackCooldown;
+                isAttacking = true;
+                RPC_PerformAttack(false);
+            }
+
+            // Attaque puissante (clic droit)
+            if (Input.GetMouseButtonDown(1) && Time.time >= nextHeavyAttackTime)
+            {
+                nextHeavyAttackTime = Time.time + heavyAttackCooldown;
+                isAttacking = true;
+                RPC_PerformAttack(true);
+            }
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (isAttacking && other.CompareTag("Enemy"))
+        {
+            float distance = Vector3.Distance(swordTransform.position, other.transform.position);
+            if (distance <= attackRange)
+            {
+                IDamageable damageable = other.GetComponent<IDamageable>();
+                if (damageable != null)
+                {
+                    float finalDamage = SetDamage(baseDamage);
+                    RPC_ApplyDamage(other.GetComponent<NetworkObject>(), finalDamage);
+                }
+            }
+        }
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
+    private void RPC_PerformAttack(bool isHeavy)
+    {
+        if (animator != null)
+        {
+            if (isHeavy)
+            {
+                animator.SetTrigger(heavyAttackAnimation);
             }
             else
             {
-                RPC_DrawSword();
-            }
-        }
-
-        if (isSwordDrawn && Input.GetMouseButtonDown(0)) // Touche pour attaquer
-        {
-            RPC_Attack();
-            ApplyDamage();
-        }
-    }
-
-    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
-    private void RPC_DrawSword()
-    {
-        isSwordDrawn = true;
-        animator.SetBool("isSwordDrawn", true);
-        animator.SetTrigger("DrawSword");
-    }
-
-    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
-    private void RPC_SheathSword()
-    {
-        isSwordDrawn = false;
-        animator.SetBool("isSwordDrawn", false);
-        animator.SetTrigger("SheathSword");
-    }
-
-    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
-    private void RPC_Attack()
-    {
-        animator.SetTrigger("isAttacking");
-    }
-
-    private void ApplyDamage()
-    {
-        if (!HasStateAuthority) return; // Assurez-vous que seul l'objet ayant l'autorité d'état applique les dégâts
-
-        // Code pour appliquer les dégâts à tous les ennemis dans la zone d'attaque
-        Collider[] hitColliders = Physics.OverlapSphere(transform.position, attackRadius);
-        foreach (var hitCollider in hitColliders)
-        {
-            if (hitCollider.CompareTag("Player") && hitCollider.gameObject != gameObject)
-            {
-                // Obtenez l'instance de ThirdPersonController à partir de hitCollider
-                ThirdPersonController playerHealth = hitCollider.GetComponent<ThirdPersonController>();
-                if (playerHealth != null)
+                // Sélection aléatoire d'une animation parmi celles définies
+                if (attackAnimations.Length > 0)
                 {
-                    playerHealth.TakeDamage(swordDamage, gameObject); // Appel correct sur l'instance playerHealth
-                }
-            }
-            else if (hitCollider.CompareTag("Enemy"))
-            {
-                // Vérifiez si l'ennemi a un composant EnemyAI et appliquez les dégâts
-                EnemyAI enemyAI = hitCollider.GetComponent<EnemyAI>();
-                if (enemyAI != null)
-                {
-                    Debug.Log($"Dealt {swordDamage} damage to enemy using FFAAI");
-                    enemyAI.TakeDamage(swordDamage, gameObject); // Appel correct sur l'instance enemyAI
+                    string randomAttack = attackAnimations[Random.Range(0, attackAnimations.Length)];
+                    animator.SetTrigger(randomAttack);
                 }
             }
         }
+
+        if (audioSource != null)
+        {
+            audioSource.clip = isHeavy ? heavyAttackSound : swordSwingSound;
+            audioSource.Play();
+        }
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_ApplyDamage(NetworkObject enemyObject, float damage)
+    {
+        if (enemyObject != null)
+        {
+            IDamageable damageable = enemyObject.GetComponent<IDamageable>();
+            if (damageable != null)
+            {
+                damageable.TakeDamage(damage, gameObject);
+            }
+        }
+    }
+
+    private float SetDamage(float damage)
+    {
+        float finalDamage = damage;
+        if (Random.value > 0.9f)
+        {
+            finalDamage *= 2;
+            if (audioSource != null && criticalHitSound != null)
+            {
+                audioSource.clip = criticalHitSound;
+                audioSource.Play();
+            }
+        }
+        return finalDamage;
     }
 }
